@@ -3,8 +3,8 @@
 
 import sys, random
 from pathlib import Path
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5 import QtCore, QtGui
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
 import int_display
 import int_command
 
@@ -36,9 +36,9 @@ class Team:
             self.score_total = int(data[3])
 
             # Recover time of each sport
-            self.time_ski = data[ski].split(' ')[2]
-            self.time_tchoukball = data[tchoukball].split(' ')[2]
-            self.time_gym = data[gym].split(' ')[2]
+            self.time_ski = data[ski].split(' ')[2][:-1]
+            self.time_tchoukball = data[tchoukball].split(' ')[2][:-1]
+            self.time_gym = data[gym].split(' ')[2][:-1]
 
     def update_team(self, folder, discipline_idx, score, time='-:--:--'):
         """Update the score for a specific player and store it."""
@@ -203,21 +203,92 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         self.button_gym.clicked.connect(lambda: self.fige_time(gym, self.display_window.name_team_gym))
 
         # Connect slider
-        self.slider_ski.valueChanged.connect(
-            lambda: self.update_score(ski, self.slider_ski.value(), self.display_window.name_team_ski,
-                                      self.display_window.nb_points_ski, self.label_score_ski))
-        self.slider_tchoukball.valueChanged.connect(
-            lambda: self.update_score(tchoukball, self.slider_tchoukball.value(),
-                                      self.display_window.name_team_tchoukball,
-                                      self.display_window.nb_points_tchoukball, self.label_score_tchoukball))
-        self.slider_gym.valueChanged.connect(
-            lambda: self.update_score(gym, self.slider_gym.value(), self.display_window.name_team_gym,
-                                      self.display_window.nb_points_gym, self.label_score_gym))
+        self.slider_ski.valueChanged.connect(lambda: self.update_score(ski,
+                                                                       self.slider_ski.value(),
+                                                                       self.display_window.name_team_ski,
+                                                                       self.display_window.nb_points_ski,
+                                                                       self.label_score_ski,
+                                                                       self.spin_penalty_ski.value()))
+
+        self.slider_tchoukball.valueChanged.connect(lambda: self.update_score(tchoukball,
+                                                                              self.slider_tchoukball.value(),
+                                                                              self.display_window.name_team_tchoukball,
+                                                                              self.display_window.nb_points_tchoukball,
+                                                                              self.label_score_tchoukball,
+                                                                              self.spin_penalty_tchoukball.value(),
+                                                                              dance=self.check_dance.checkState()))
+
+        self.slider_gym.valueChanged.connect(lambda: self.update_score(gym,
+                                                                       self.slider_gym.value(),
+                                                                       self.display_window.name_team_gym,
+                                                                       self.display_window.nb_points_gym,
+                                                                       self.label_score_gym,
+                                                                       self.spin_penalty_gym.value()))
+
+        # Connect checkbox danse
+        self.check_dance.clicked.connect(lambda: self.update_score(tchoukball,
+                                                                   self.slider_tchoukball.value(),
+                                                                   self.display_window.nb_points_tchoukball,
+                                                                   self.display_window.nb_points_tchoukball,
+                                                                   self.label_score_tchoukball,
+                                                                   self.spin_penalty_tchoukball.value(),
+                                                                   dance=self.check_dance.checkState()))
+
+        # Connect penalty spinbox
+        self.spin_penalty_ski.valueChanged.connect(lambda: self.update_score(ski,
+                                                                             self.slider_ski.value(),
+                                                                             self.display_window.nb_points_ski,
+                                                                             self.display_window.nb_points_ski,
+                                                                             self.label_score_ski,
+                                                                             self.spin_penalty_ski.value()))
+
+        self.spin_penalty_tchoukball.valueChanged.connect(
+            lambda: self.update_score(tchoukball,
+                                      self.slider_tchoukball.value(),
+                                      self.display_window.nb_points_tchoukball,
+                                      self.display_window.nb_points_tchoukball,
+                                      self.label_score_tchoukball,
+                                      self.spin_penalty_tchoukball.value(),
+                                      dance=self.check_dance.checkState()))
+
+        self.spin_penalty_gym.valueChanged.connect(lambda: self.update_score(gym,
+                                                                             self.slider_gym.value(),
+                                                                             self.display_window.nb_points_gym,
+                                                                             self.display_window.nb_points_gym,
+                                                                             self.label_score_gym,
+                                                                             self.spin_penalty_gym.value()))
 
     def main(self):
         """Main function to finish to implement the window."""
 
         self.refresh()
+
+        # set the table model
+
+        # Set table widget
+        self.table_matchs.setColumnCount(3)
+
+        for i in range(3):
+            self.table_matchs.setColumnWidth(i, 148)
+
+        self.table_matchs.setRowCount(self.nb_match)
+        self.table_matchs.selectRow(self.match_state)
+
+        # FIll table widget
+        with open(self.folder_storage + '/match.txt', 'r') as fm:
+            match = fm.readlines()
+
+            for i, m in enumerate(match):
+                for j, t in enumerate(m.split(',')):
+                    if j == 2:
+                        newitem = QTableWidgetItem(t[:-1])
+                    else:
+                        newitem = QTableWidgetItem(t)
+
+                    self.table_matchs.setItem(i, j, newitem)
+
+        # Set labels to each column
+        self.table_matchs.setHorizontalHeaderLabels(['Ski', 'Tchoukball', 'Gym'])
         self.show()
 
     def start_all(self):
@@ -230,10 +301,11 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         self.started = True
         self.display_window.start_all()
 
-        # Activate sliders
-        self.slider_ski.setEnabled(self.started)
-        self.slider_tchoukball.setEnabled(self.started)
-        self.slider_gym.setEnabled(self.started)
+        # Activate interface
+        self.enable_interface()
+
+        # Deactivate start button
+        self.button_start_all.setEnabled(False)
 
     def stop_all(self):
         """Stop displaying timer and update timer in file/DisplayWindows."""
@@ -250,6 +322,26 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         # Stop refreshing timer
         self.started = False
         self.display_window.started = False
+
+    def enable_interface(self):
+        # Deactivate sliders
+        self.slider_ski.setEnabled(self.started)
+        self.slider_tchoukball.setEnabled(self.started)
+        self.slider_gym.setEnabled(self.started)
+
+        # Deactivate checkbox
+        self.check_dance.setEnabled(self.started)
+
+        if not self.started:
+            # Reinitialize spinbox
+            self.spin_penalty_ski.setValue(0)
+            self.spin_penalty_tchoukball.setValue(0)
+            self.spin_penalty_gym.setValue(0)
+
+        # Deactivate spinbox
+        self.spin_penalty_ski.setEnabled(self.started)
+        self.spin_penalty_tchoukball.setEnabled(self.started)
+        self.spin_penalty_gym.setEnabled(self.started)
 
     def refresh(self):
         """Refresh the total interface to have it as the initialization step."""
@@ -276,29 +368,35 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         self.lcd_sec.display(0)
         self.lcd_millis.display(0)
 
+        # Reinitialize checkbox
+        self.check_dance.setChecked(self.started)
+
         # Reinitialize times
         self.label_time_ski.setText('-:--:--')
         self.label_time_tchoukball.setText('-:--:--')
         self.label_time_gym.setText('-:--:--')
 
-        self.time_elapsed.restart()
-
-        # Deactivate sliders
-        self.slider_ski.setEnabled(self.started)
-        self.slider_tchoukball.setEnabled(self.started)
-        self.slider_gym.setEnabled(self.started)
+        self.enable_interface()
 
     def previous_match(self):
         """Display the previous match."""
 
+        self.refresh()
+
         self.match_state = (self.match_state - 1) % self.nb_match
         self.update_match()
+
+        self.table_matchs.selectRow(self.match_state)
 
     def next_match(self):
         """Display the next match."""
 
+        self.refresh()
+
         self.match_state = (self.match_state + 1) % self.nb_match
         self.update_match()
+
+        self.table_matchs.selectRow(self.match_state)
 
     def update_match(self):
         """Update match and display all information."""
@@ -314,25 +412,33 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
             if t.team_name == self.display_window.name_team_ski.text():
                 self.display_window.label_time_ski.setText(str(t.time_ski))
                 self.display_window.nb_points_ski.setText(str(t.score_ski))
-            elif self.display_window.name_team_ski.text() == '':
-                self.display_window.label_time_ski.setText('-:--:--')
-                self.display_window.nb_points_ski.setText('0')
+
+                self.label_score_ski.setText(str(t.score_ski))
+                self.label_time_ski.setText(str(t.time_ski))
 
             if t.team_name == self.display_window.name_team_tchoukball.text():
                 self.display_window.label_time_tchoukball.setText(str(t.time_tchoukball))
                 self.display_window.nb_points_tchoukball.setText(str(t.score_tchoukball))
-            elif self.display_window.name_team_tchoukball.text() == '':
-                self.display_window.label_time_tchoukball.setText('-:--:--')
-                self.display_window.nb_points_tchoukball.setText('0')
+
+                self.label_score_tchoukball.setText(str(t.score_tchoukball))
+                self.label_time_tchoukball.setText(str(t.time_tchoukball))
 
             if t.team_name == self.display_window.name_team_gym.text():
                 self.display_window.label_time_gym.setText(str(t.time_gym))
                 self.display_window.nb_points_gym.setText(str(t.score_gym))
-            elif self.display_window.name_team_gym.text() == '':
-                self.display_window.label_time_gym.setText('-:--:--')
-                self.display_window.nb_points_gym.setText('0')
 
-    def update_score(self, discipline_idx, slider_value, disp_label_team, disp_score, command_score):
+                self.label_score_gym.setText(str(t.score_gym))
+                self.label_time_gym.setText(str(t.time_gym))
+
+        if self.label_time_ski.text() != '-:--:--' or \
+                self.label_time_tchoukball.text() != '-:--:--' or \
+                self.label_time_gym.text() != '-:--:--':
+            self.button_start_all.setEnabled(False)
+        else:
+            self.button_start_all.setEnabled(True)
+
+    def update_score(self, discipline_idx, slider_value, disp_label_team, disp_score, command_score, penalty,
+                     dance=None):
         """ Update score for a specific team."""
         time = '-:--:--'
 
@@ -342,6 +448,11 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
 
             for val in range(slider_value):
                 score += self.point[discipline_idx][val]
+
+            score -= penalty
+
+            if dance:
+                score += 1
 
             # Recover time figed if slider_value = max_slider_value
             if slider_value == self.max_slider_value:
@@ -465,13 +576,13 @@ def init_match_file(folder, dictionary_teams):
     longest_list = max(list_sports, key=len)
 
     while len(list_sports[ski]) < len(longest_list):
-        list_sports[ski].append('')
+        list_sports[ski].append(' ')
 
     while len(list_sports[tchoukball]) < len(longest_list):
-        list_sports[tchoukball].append('')
+        list_sports[tchoukball].append(' ')
 
     while len(list_sports[gym]) < len(longest_list):
-        list_sports[gym].append('')
+        list_sports[gym].append(' ')
 
     # Fill match file
     solution = False
@@ -503,8 +614,10 @@ def init_match_file(folder, dictionary_teams):
 
             match += list_tchoukball[0] + ','
 
-            if list_gym[0] != m and list_gym[0] != list_tchoukball[0]:
+            if list_gym[0] != m and list_gym[0] != list_tchoukball[0] and i != 20:
                 solution = True
+            elif i == 20:
+                break
             else:
                 while list_gym[0] == m or list_gym[0] == list_tchoukball[0]:
                     j += 1
