@@ -143,6 +143,9 @@ class Ui_Form(object):
         self.line.setLineWidth(2)
         self.line.setFrameShape(QtWidgets.QFrame.VLine)
         self.line.setObjectName("line")
+        self.button_stop = QtWidgets.QPushButton(Form)
+        self.button_stop.setGeometry(QtCore.QRect(270, 10, 89, 25))
+        self.button_stop.setObjectName("button_stop")
 
         self.retranslateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
@@ -165,5 +168,6 @@ class Ui_Form(object):
         self.button_ski.setText(_translate("Form", "Ski"))
         self.button_tchoukball.setText(_translate("Form", "Tchoukball"))
         self.button_gym.setText(_translate("Form", "Gym"))
+        self.button_stop.setText(_translate("Form", "Stop"))
 
 

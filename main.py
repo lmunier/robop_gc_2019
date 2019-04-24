@@ -190,6 +190,7 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         self.timer.start(10)
 
         # Connect buttons to functions
+        self.button_stop.clicked.connect(self.stop_all)
         self.button_previous.clicked.connect(self.previous_match)
         self.button_next.clicked.connect(self.next_match)
         self.button_refresh.clicked.connect(self.refresh)
@@ -233,6 +234,22 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         self.slider_ski.setEnabled(self.started)
         self.slider_tchoukball.setEnabled(self.started)
         self.slider_gym.setEnabled(self.started)
+
+    def stop_all(self):
+        """Stop displaying timer and update timer in file/DisplayWindows."""
+        # Fige timers
+        if self.label_time_ski.text() == '-:--:--':
+            self.fige_time(ski, self.display_window.name_team_ski)
+
+        if self.label_time_tchoukball.text() == '-:--:--':
+            self.fige_time(tchoukball, self.display_window.name_team_tchoukball)
+
+        if self.label_time_gym.text() == '-:--:--':
+            self.fige_time(gym, self.display_window.name_team_gym)
+
+        # Stop refreshing timer
+        self.started = False
+        self.display_window.started = False
 
     def refresh(self):
         """Refresh the total interface to have it as the initialization step."""
