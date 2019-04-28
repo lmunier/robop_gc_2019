@@ -46,12 +46,15 @@ class Team:
         if discipline_idx == ski:
             self.score_ski = score
             self.time_ski = time
+            self.state_ski = 2
         elif discipline_idx == tchoukball:
             self.score_tchoukball = score
             self.time_tchoukball = time
+            self.state_tchoukball = 2
         elif discipline_idx == gym:
             self.score_gym = score
             self.time_gym = time
+            self.state_gym = 2
 
         self.score_total = self.score_ski + self.score_tchoukball + self.score_gym
         self.update_file(folder, discipline_idx, score, time)
@@ -85,20 +88,17 @@ class DisplayWindow(QMainWindow, int_display.Ui_MainWindow):
         self.setupUi(self)
 
         # Init team for the first match
-        with open(self.folder_storage + '/match.txt', 'r') as match_file:
+        """with open(self.folder_storage + '/match.txt', 'r') as match_file:
             data = match_file.readlines()[match_state].split(',')
 
             self.name_team_ski.setText(data[ski])
             self.name_team_tchoukball.setText(data[tchoukball])
-            self.name_team_gym.setText(data[gym][:-1])
+            self.name_team_gym.setText(data[gym][:-1])"""
 
         # Init timer to update elapsed time
         self.timer.setSingleShot(False)
         self.timer.timeout.connect(self.update_timer)
         self.timer.start(10)
-
-        # Remove frame of window
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
 
     def main(self):
         """Main function to finish to implement the window."""
@@ -169,7 +169,7 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
     # Set timer
     timer = QtCore.QTimer()
 
-    def __init__(self, timer, display, teams, folder, match_state, nb_match, parent=None):
+    def __init__(self, timer, display, teams, folder, match_state, parent=None):
         """Initialize the command window and connect all the buttons to the right function."""
 
         super(CommandWindow, self).__init__(parent)
@@ -179,7 +179,7 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         self.folder_storage = folder        # Save folder where all the information are stored
 
         self.match_state = match_state
-        self.nb_match = nb_match
+        self.nb_match = 0
 
         self.started = False
         self.setupUi(self)
@@ -194,7 +194,11 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         self.button_previous.clicked.connect(self.previous_match)
         self.button_next.clicked.connect(self.next_match)
         self.button_refresh.clicked.connect(self.refresh)
+        self.button_refresh_match.clicked.connect(self.refresh_match)
         self.button_start_all.clicked.connect(self.start_all)
+
+        # Connect checbox to enable/disable frame windows
+        self.check_frame.clicked.connect(lambda: self.enable_frame(self.check_frame.isChecked()))
 
         # Connect label clicked to function fige_time
         self.button_ski.clicked.connect(lambda: self.fige_time(ski, self.display_window.name_team_ski))
@@ -261,35 +265,103 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
     def main(self):
         """Main function to finish to implement the window."""
 
+        self.nb_match = self.init_match_file(self.folder_storage, self.dict_teams)
+
+        if self.nb_match is None:
+            sys.exit(app.exit())
+
         self.refresh()
-
-        # set the table model
-
-        # Set table widget
-        self.table_matchs.setColumnCount(3)
-
-        for i in range(3):
-            self.table_matchs.setColumnWidth(i, 148)
-
-        self.table_matchs.setRowCount(self.nb_match)
-        self.table_matchs.selectRow(self.match_state)
-
-        # FIll table widget
-        with open(self.folder_storage + '/match.txt', 'r') as fm:
-            match = fm.readlines()
-
-            for i, m in enumerate(match):
-                for j, t in enumerate(m.split(',')):
-                    if j == 2:
-                        newitem = QTableWidgetItem(t[:-1])
-                    else:
-                        newitem = QTableWidgetItem(t)
-
-                    self.table_matchs.setItem(i, j, newitem)
-
-        # Set labels to each column
-        self.table_matchs.setHorizontalHeaderLabels(['Ski', 'Tchoukball', 'Gym'])
         self.show()
+
+    def init_match_file(self, folder, dictionary_teams):
+        """Initialization function to init file for each match."""
+
+        # Fill list to recover all the team participating in each sports
+        empty_lists = True
+        list_sports = [[], [], []]
+
+        for t in dictionary_teams.values():
+            if t.state_ski == 1:
+                list_sports[ski].append(t.team_name)
+            if t.state_tchoukball == 1:
+                list_sports[tchoukball].append(t.team_name)
+            if t.state_gym == 1:
+                list_sports[gym].append(t.team_name)
+
+        for l in list_sports:
+            if l:
+                empty_lists = False
+
+        if empty_lists:
+            return None
+
+        # Find the longest list to fill the other ones with blank
+        longest_list = max(list_sports, key=len)
+
+        while len(list_sports[ski]) < len(longest_list):
+            list_sports[ski].append(' ')
+
+        while len(list_sports[tchoukball]) < len(longest_list):
+            list_sports[tchoukball].append(' ')
+
+        while len(list_sports[gym]) < len(longest_list):
+            list_sports[gym].append(' ')
+
+        # Fill match file
+        solution = False
+        list_match = []
+
+        while not solution:
+            list_match = []
+            list_ski = [l for l in list_sports[ski]]
+            list_tchoukball = [l for l in list_sports[tchoukball]]
+            list_gym = [l for l in list_sports[gym]]
+
+            random.shuffle(list_ski)
+            random.shuffle(list_tchoukball)
+            random.shuffle(list_gym)
+
+            for m in list_ski:
+                i, j = 0, 0
+                match = m + ','
+
+                while list_tchoukball[0] == m:
+                    i += 1
+
+                    if i == 20:
+                        solution = False
+                        break
+                    else:
+                        random.shuffle(list_tchoukball)
+                        solution = True
+
+                match += list_tchoukball[0] + ','
+
+                if list_gym[0] != m and list_gym[0] != list_tchoukball[0] and i != 20:
+                    solution = True
+                elif i == 20:
+                    break
+                else:
+                    while list_gym[0] == m or list_gym[0] == list_tchoukball[0]:
+                        j += 1
+
+                        if j == 20:
+                            solution = False
+                            break
+                        else:
+                            random.shuffle(list_gym)
+                            solution = True
+
+                list_match.append(match + list_gym[0] + '\n')
+
+                list_tchoukball.pop(0)
+                list_gym.pop(0)
+
+        with open(folder + '/match.txt', "w") as match_file:
+            for m in list_match:
+                match_file.write(m)
+
+        return len(longest_list)
 
     def start_all(self):
         """Start all, the match and the timer."""
@@ -303,9 +375,6 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
 
         # Activate interface
         self.enable_interface()
-
-        # Deactivate start button
-        self.button_start_all.setEnabled(False)
 
     def stop_all(self):
         """Stop displaying timer and update timer in file/DisplayWindows."""
@@ -323,7 +392,17 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
         self.started = False
         self.display_window.started = False
 
+    def enable_frame(self, state):
+        """Enable/Disable frame window for the displaying interface."""
+        if not state:
+            self.display_window.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        else:
+            self.display_window.setWindowFlags(QtCore.Qt.WindowTitleHint)
+
+        self.display_window.show()
+
     def enable_interface(self):
+        """Enable/disable interface."""
         # Deactivate sliders
         self.slider_ski.setEnabled(self.started)
         self.slider_tchoukball.setEnabled(self.started)
@@ -378,6 +457,37 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
 
         self.enable_interface()
 
+    def refresh_match(self):
+        """Refresh match table."""
+
+        if not Path(self.folder_storage + '/match.txt').is_file():
+            self.init_match_file(self.folder_storage, self.dict_teams)
+
+        # Set table widget
+        self.table_matchs.setColumnCount(3)
+
+        for i in range(3):
+            self.table_matchs.setColumnWidth(i, 148)
+
+        self.table_matchs.setRowCount(self.nb_match)
+        self.table_matchs.selectRow(self.match_state)
+
+        # FIll table widget
+        with open(self.folder_storage + '/match.txt', 'r') as fm:
+            match = fm.readlines()
+
+            for i, m in enumerate(match):
+                for j, t in enumerate(m.split(',')):
+                    if j == 2:
+                        newitem = QTableWidgetItem(t[:-1])
+                    else:
+                        newitem = QTableWidgetItem(t)
+
+                    self.table_matchs.setItem(i, j, newitem)
+
+        # Set labels to each column
+        self.table_matchs.setHorizontalHeaderLabels(['Ski', 'Tchoukball', 'Gym'])
+
     def previous_match(self):
         """Display the previous match."""
 
@@ -429,13 +539,6 @@ class CommandWindow(QMainWindow, int_command.Ui_Form):
 
                 self.label_score_gym.setText(str(t.score_gym))
                 self.label_time_gym.setText(str(t.time_gym))
-
-        if self.label_time_ski.text() != '-:--:--' or \
-                self.label_time_tchoukball.text() != '-:--:--' or \
-                self.label_time_gym.text() != '-:--:--':
-            self.button_start_all.setEnabled(False)
-        else:
-            self.button_start_all.setEnabled(True)
 
     def update_score(self, discipline_idx, slider_value, disp_label_team, disp_score, command_score, penalty,
                      dance=None):
@@ -550,97 +653,6 @@ def init_team_files(folder):
     return dictionary_teams
 
 
-def init_match_file(folder, dictionary_teams):
-    """Initialization function to init file for each match."""
-
-    # Fill list to recover all the team participating in each sports
-    empty_lists = True
-    list_sports = [[], [], []]
-
-    for t in dictionary_teams.values():
-        if t.state_ski == 1:
-            list_sports[ski].append(t.team_name)
-        if t.state_tchoukball == 1:
-            list_sports[tchoukball].append(t.team_name)
-        if t.state_gym == 1:
-            list_sports[gym].append(t.team_name)
-
-    for l in list_sports:
-        if l:
-            empty_lists = False
-
-    if empty_lists:
-        return None
-
-    # Find the longest list to fill the other ones with blank
-    longest_list = max(list_sports, key=len)
-
-    while len(list_sports[ski]) < len(longest_list):
-        list_sports[ski].append(' ')
-
-    while len(list_sports[tchoukball]) < len(longest_list):
-        list_sports[tchoukball].append(' ')
-
-    while len(list_sports[gym]) < len(longest_list):
-        list_sports[gym].append(' ')
-
-    # Fill match file
-    solution = False
-    list_match = []
-
-    while not solution:
-        list_match = []
-        list_ski = [l for l in list_sports[ski]]
-        list_tchoukball = [l for l in list_sports[tchoukball]]
-        list_gym = [l for l in list_sports[gym]]
-
-        random.shuffle(list_ski)
-        random.shuffle(list_tchoukball)
-        random.shuffle(list_gym)
-
-        for m in list_ski:
-            i, j = 0, 0
-            match = m + ','
-
-            while list_tchoukball[0] == m:
-                i += 1
-
-                if i == 20:
-                    solution = False
-                    break
-                else:
-                    random.shuffle(list_tchoukball)
-                    solution = True
-
-            match += list_tchoukball[0] + ','
-
-            if list_gym[0] != m and list_gym[0] != list_tchoukball[0] and i != 20:
-                solution = True
-            elif i == 20:
-                break
-            else:
-                while list_gym[0] == m or list_gym[0] == list_tchoukball[0]:
-                    j += 1
-
-                    if j == 20:
-                        solution = False
-                        break
-                    else:
-                        random.shuffle(list_gym)
-                        solution = True
-
-            list_match.append(match + list_gym[0] + '\n')
-
-            list_tchoukball.pop(0)
-            list_gym.pop(0)
-
-    with open(folder + '/match.txt', "w") as match_file:
-        for m in list_match:
-            match_file.write(m)
-
-    return len(longest_list)
-
-
 if __name__ == "__main__":
     match_state = 0
     ski, tchoukball, gym = 0, 1, 2
@@ -651,11 +663,6 @@ if __name__ == "__main__":
     folder_name = "team_match"
     dict_teams = init_team_files(folder_name)
 
-    nb_match = init_match_file(folder_name, dict_teams)
-
-    if nb_match is None:
-        sys.exit(app.exit())
-
     # Init and start timer
     start_timer = QtCore.QElapsedTimer()
     start_timer.start()
@@ -665,7 +672,7 @@ if __name__ == "__main__":
     ui_beamer.main()
 
     # Create command window
-    ui_commande = CommandWindow(start_timer, ui_beamer, dict_teams, folder_name, match_state, nb_match)
+    ui_commande = CommandWindow(start_timer, ui_beamer, dict_teams, folder_name, match_state)
     ui_commande.main()
 
     sys.exit(app.exec_())

@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['main.py'],
-             pathex=['/home/lmunier/Desktop/GC2019/robolympiques'],
+             pathex=['/media/lmunier/Data/EPFL/Robopoly/2018 - 2019/GC2019/robolympiques'],
              binaries=[],
              datas=[],
              hiddenimports=[],

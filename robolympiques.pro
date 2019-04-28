@@ -35,7 +35,8 @@ HEADERS += \
 
 FORMS += \
         mainwindow.ui \
-    int_commande.ui
+    int_commande.ui \
+    int_command.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
